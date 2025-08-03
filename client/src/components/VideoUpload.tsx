@@ -1,27 +1,25 @@
 import { useState, useRef } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CloudUpload, Info, Download } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Upload, Youtube } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Video } from "@shared/schema";
 
-interface VideoUploadProps {
-  onVideoSelect: (video: Video) => void;
-}
-
-export default function VideoUpload({ onVideoSelect }: VideoUploadProps) {
-  const [isDragging, setIsDragging] = useState(false);
+export default function VideoUpload() {
+  const [file, setFile] = useState<File | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [uploadMode, setUploadMode] = useState<"file" | "youtube">("file");
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+  const uploadVideoMutation = useMutation({
+    mutationFn: async (videoFile: File) => {
       const formData = new FormData();
-      formData.append('video', file);
+      formData.append('video', videoFile);
 
       const response = await fetch('/api/videos/upload', {
         method: 'POST',
@@ -29,28 +27,35 @@ export default function VideoUpload({ onVideoSelect }: VideoUploadProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to upload video');
       }
 
       return response.json();
     },
-    onSuccess: (video: Video) => {
+    onSuccess: () => {
       toast({
-        title: "Upload successful",
-        description: "Your video has been uploaded successfully.",
+        title: "Success",
+        description: "Video uploaded successfully!",
       });
-      onVideoSelect(video);
+      queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
+      setFile(null);
+      setUploadProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: "Upload failed",
-        description: error instanceof Error ? error.message : "Failed to upload video",
+        title: "Error",
+        description: error.message,
         variant: "destructive",
       });
+      setUploadProgress(0);
     },
   });
 
-  const youtubeMutation = useMutation({
+  const downloadYoutubeMutation = useMutation({
     mutationFn: async (url: string) => {
       const response = await fetch('/api/videos/download-youtube', {
         method: 'POST',
@@ -61,232 +66,143 @@ export default function VideoUpload({ onVideoSelect }: VideoUploadProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Download failed');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to download YouTube video');
       }
 
       return response.json();
     },
-    onSuccess: (video: Video) => {
+    onSuccess: () => {
       toast({
-        title: "Download successful",
-        description: "YouTube video has been downloaded successfully.",
+        title: "Success",
+        description: "YouTube video downloaded successfully!",
       });
-      onVideoSelect(video);
+      queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
       setYoutubeUrl("");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: "Download failed",
-        description: error instanceof Error ? error.message : "Failed to download YouTube video",
+        title: "Error",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  const handleFileSelect = (file: File) => {
-    if (file.type !== 'video/mp4') {
-      toast({
-        title: "Invalid file type",
-        description: "Please select an MP4 video file.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (file.size > 500 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please select a video smaller than 500MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    uploadMutation.mutate(file);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  };
-
-  const handleButtonClick = () => {
-    if (uploadMode === "file") {
-      fileInputRef.current?.click();
-    } else {
-      handleYouTubeDownload();
-    }
-  };
-
-  const handleYouTubeDownload = async () => {
-    if (!youtubeUrl.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a YouTube URL",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Basic YouTube URL validation
-    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
-    if (!youtubeRegex.test(youtubeUrl)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid YouTube URL",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsDownloading(true);
-
-      const response = await fetch("/api/videos/download-youtube", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: youtubeUrl }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to download video");
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.type !== 'video/mp4') {
+        toast({
+          title: "Error",
+          description: "Please select an MP4 file only.",
+          variant: "destructive",
+        });
+        return;
       }
+      if (selectedFile.size > 500 * 1024 * 1024) { // 500MB
+        toast({
+          title: "Error",
+          description: "File size must be less than 500MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setFile(selectedFile);
+    }
+  };
 
-      const video = await response.json();
-      toast({
-        title: "Success! 🎉",
-        description: `Video "${video.originalName}" downloaded successfully`,
-      });
+  const handleUpload = () => {
+    if (file) {
+      uploadVideoMutation.mutate(file);
+    }
+  };
 
-      setYoutubeUrl("");
-      onVideoUploaded?.();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to download video",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDownloading(false);
+  const handleYoutubeDownload = () => {
+    if (youtubeUrl.trim()) {
+      downloadYoutubeMutation.mutate(youtubeUrl.trim());
     }
   };
 
   return (
-    <Card>
-      <CardContent className="p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Add New Video</h2>
-
-        {/* Upload Mode Selector */}
-        <div className="flex space-x-2 mb-4">
-          <Button
-            variant={uploadMode === "file" ? "default" : "outline"}
-            onClick={() => setUploadMode("file")}
-            className="flex-1"
-          >
-            <CloudUpload className="h-4 w-4 mr-2" />
-            Upload File
-          </Button>
-          <Button
-            variant={uploadMode === "youtube" ? "default" : "outline"}
-            onClick={() => setUploadMode("youtube")}
-            className="flex-1"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            YouTube URL
-          </Button>
-        </div>
-
-        {uploadMode === "file" ? (
-          <div
-            className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors cursor-pointer ${
-              isDragging 
-                ? 'border-primary bg-blue-50' 
-                : 'border-gray-300 hover:border-primary'
-            }`}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onClick={handleButtonClick}
-          >
-            <input
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* File Upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            Upload Video File
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="video-file">Select MP4 File (max 500MB)</Label>
+            <Input
+              id="video-file"
               ref={fileInputRef}
               type="file"
               accept="video/mp4"
-              onChange={handleFileInputChange}
-              className="hidden"
+              onChange={handleFileSelect}
             />
-
-            <CloudUpload className="h-12 w-12 text-gray-400 mb-4 mx-auto" />
-            <p className="text-lg text-gray-600 mb-2">
-              {uploadMutation.isPending 
-                ? "Uploading..." 
-                : "Drag and drop your MP4 video here"
-              }
-            </p>
-            <p className="text-sm text-gray-500 mb-4">or click to browse files</p>
-            <Button 
-              disabled={uploadMutation.isPending}
-              variant={uploadMutation.isPending ? "secondary" : "default"}
-            >
-              {uploadMutation.isPending ? "Uploading..." : "Choose File"}
-            </Button>
           </div>
-        ) : (
-          <div className="border-2 border-dashed rounded-lg p-8 text-center">
-            <Download className="h-12 w-12 text-gray-400 mb-4 mx-auto" />
-            <p className="text-lg text-gray-600 mb-4">Download video from YouTube</p>
-            <div className="space-y-3">
-              <Input
-                type="url"
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={youtubeUrl}
-                onChange={(e) => setYoutubeUrl(e.target.value)}
-                className="max-w-md mx-auto"
-              />
-              <Button 
-                onClick={handleYouTubeDownload}
-                disabled={youtubeMutation.isPending || !youtubeUrl.trim()}
-                className="w-full max-w-md"
-              >
-                {youtubeMutation.isPending ? "Downloading..." : "Download Video"}
-              </Button>
+
+          {file && (
+            <div className="p-3 bg-muted rounded-md">
+              <p className="text-sm font-medium">{file.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {(file.size / (1024 * 1024)).toFixed(2)} MB
+              </p>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="mt-4 flex items-center text-sm text-gray-500">
-          <Info className="h-4 w-4 mr-2" />
-          {uploadMode === "file" 
-            ? "Supported formats: MP4 (max 500MB)" 
-            : "Supports YouTube videos and shorts"
-          }
-        </div>
-      </CardContent>
-    </Card>
+          {uploadVideoMutation.isPending && (
+            <div>
+              <Progress value={uploadProgress} className="w-full" />
+              <p className="text-sm text-muted-foreground mt-1">
+                Uploading... {uploadProgress}%
+              </p>
+            </div>
+          )}
+
+          <Button
+            onClick={handleUpload}
+            disabled={!file || uploadVideoMutation.isPending}
+            className="w-full"
+          >
+            {uploadVideoMutation.isPending ? "Uploading..." : "Upload Video"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* YouTube Download */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Youtube className="h-5 w-5" />
+            Download from YouTube
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="youtube-url">YouTube Video URL</Label>
+            <Input
+              id="youtube-url"
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=..."
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+            />
+          </div>
+
+          <Button
+            onClick={handleYoutubeDownload}
+            disabled={!youtubeUrl.trim() || downloadYoutubeMutation.isPending}
+            className="w-full"
+          >
+            {downloadYoutubeMutation.isPending ? "Downloading..." : "Download Video"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

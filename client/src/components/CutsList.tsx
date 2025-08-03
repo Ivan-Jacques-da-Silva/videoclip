@@ -1,70 +1,238 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Play, Edit } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import type { Cut } from "@shared/schema";
 
-interface CutsListProps {
-  onEditCut: (cut: Cut) => void;
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { Edit, Trash, Play, Share } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import EditCutModal from "./EditCutModal";
+
+interface Cut {
+  id: string;
+  title: string;
+  description?: string;
+  hashtags?: string;
+  startTime: number;
+  endTime: number;
+  duration: number;
+  filePath?: string;
+  status: string;
+  platforms: Record<string, boolean>;
+  video: {
+    id: string;
+    originalName: string;
+  };
 }
 
-export default function CutsList({ onEditCut }: CutsListProps) {
-  const { data: cuts = [] } = useQuery<Cut[]>({
+export default function CutsList() {
+  const [selectedCut, setSelectedCut] = useState<Cut | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: cuts, isLoading } = useQuery<Cut[]>({
     queryKey: ["/api/cuts"],
+    refetchInterval: 5000, // Refresh every 5 seconds
   });
 
-  const recentCuts = cuts.slice(0, 3);
+  const deleteCutMutation = useMutation({
+    mutationFn: async (cutId: string) => {
+      const response = await fetch(`/api/cuts/${cutId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete cut');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Cut deleted successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/cuts"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'ready':
+        return 'default';
+      case 'pending':
+        return 'secondary';
+      case 'processing':
+        return 'outline';
+      case 'published':
+        return 'default';
+      case 'failed':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const handleEdit = (cut: Cut) => {
+    setSelectedCut(cut);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDelete = (cutId: string) => {
+    if (confirm('Are you sure you want to delete this cut?')) {
+      deleteCutMutation.mutate(cutId);
+    }
+  };
+
+  const handlePlayCut = (cutId: string) => {
+    // Open video file in new tab
+    window.open(`/api/cuts/${cutId}/file`, '_blank');
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Video Cuts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-muted-foreground">
+            Loading cuts...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Recent Cuts</h2>
-          <Button variant="ghost" size="sm">View All</Button>
-        </div>
-        <div className="space-y-3">
-          {recentCuts.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No cuts generated yet. Upload a video and create cuts to get started.
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Video Cuts ({cuts?.length || 0})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!cuts || cuts.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              No cuts available. Upload a video and generate cuts to get started.
             </div>
           ) : (
-            recentCuts.map((cut) => (
-              <div key={cut.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-material-1 transition-shadow">
-                <div className="flex items-start space-x-3">
-                  <div className="w-16 h-12 bg-gray-300 rounded flex-shrink-0 flex items-center justify-center">
-                    <Play className="h-4 w-4 text-gray-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{cut.title}</p>
-                    <p className="text-sm text-gray-600">
-                      {Math.floor(cut.duration / 60)}:{(cut.duration % 60).toString().padStart(2, '0')}
-                    </p>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        cut.status === 'ready' ? 'bg-green-100 text-green-800' :
-                        cut.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                        cut.status === 'posted' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {cut.status}
-                      </span>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => onEditCut(cut)}
-                        disabled={cut.status === 'processing'}
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Video Source</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Time Range</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Platforms</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cuts.map((cut) => (
+                    <TableRow key={cut.id}>
+                      <TableCell className="font-medium">
+                        {cut.title}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {cut.video.originalName}
+                      </TableCell>
+                      <TableCell>
+                        {formatTime(cut.duration)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {formatTime(cut.startTime)} - {formatTime(cut.endTime)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusVariant(cut.status)}>
+                          {cut.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(cut.platforms).map(([platform, enabled]) => (
+                            enabled && (
+                              <Badge key={platform} variant="outline" className="text-xs">
+                                {platform}
+                              </Badge>
+                            )
+                          ))}
+                          {Object.keys(cut.platforms).length === 0 && (
+                            <span className="text-xs text-muted-foreground">None</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {cut.filePath && (
+                            <Button
+                              onClick={() => handlePlayCut(cut.id)}
+                              size="sm"
+                              variant="outline"
+                            >
+                              <Play className="h-3 w-3" />
+                            </Button>
+                          )}
+                          <Button
+                            onClick={() => handleEdit(cut)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDelete(cut.id)}
+                            size="sm"
+                            variant="destructive"
+                            disabled={deleteCutMutation.isPending}
+                          >
+                            <Trash className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {selectedCut && (
+        <EditCutModal
+          cut={selectedCut}
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedCut(null);
+          }}
+        />
+      )}
+    </>
   );
 }
