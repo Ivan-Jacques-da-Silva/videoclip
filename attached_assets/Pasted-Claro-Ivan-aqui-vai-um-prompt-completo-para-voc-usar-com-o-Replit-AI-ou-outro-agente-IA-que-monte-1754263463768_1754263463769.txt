@@ -1,0 +1,102 @@
+Claro Ivan, aqui vai um prompt completo para você usar com o Replit AI (ou outro agente IA que monte o sistema):
+
+---
+
+**🧠 Prompt para criar sistema de corte e postagem automática de vídeos curtos**
+
+Quero que você crie um sistema web completo e moderno, com as seguintes especificações:
+
+---
+
+### 🔧 **Tecnologias obrigatórias**
+
+* **Frontend**: React moderno (com Tailwind ou Bootstrap)
+* **Backend**: Node.js + Express
+* **Banco de dados**: PostgreSQL usando **Prisma**
+* **Upload e corte de vídeos**: `ffmpeg`
+* **Plataformas de destino**: integração com APIs do **Instagram, YouTube, TikTok e Facebook**
+* **Envio automático de cortes**
+* **Arquivo `.env` para todas variáveis sensíveis**
+
+---
+
+### 🎯 **Funcionalidade esperada**
+
+1. **Upload de vídeos**
+
+   * Interface para subir arquivos MP4
+   * Salvar no servidor
+
+2. **Visualização do vídeo com player**
+
+   * Timeline que mostra a duração
+   * Campo para digitar `|` para marcar pontos de corte
+
+3. **Geração de cortes**
+
+   * O sistema lê os `|` e gera cortes automáticos com `ffmpeg`
+   * Salva cada corte como vídeo separado
+
+4. **Editor de cada corte**
+
+   * Permitir inserir título, descrição, hashtags, thumbnail
+   * Armazenar no banco
+
+5. **Obfuscação do vídeo**
+
+   * Modificar metadados
+   * Alterar levemente bitrate, FPS, brilho, etc (para evitar conteúdo duplicado nas plataformas)
+
+6. **Envio automático para redes sociais**
+
+   * Usar APIs oficiais ou serviços como Facebook Graph, YouTube Data API, TikTok Upload API
+   * Usar tokens OAuth salvos no `.env`
+
+7. **Painel para visualizar cortes prontos**
+
+   * Com botão "Postar agora"
+   * Mostrar status: pendente, enviado, erro
+
+---
+
+### 📁 Estrutura de pastas sugerida
+
+```
+/frontend
+  - App.jsx
+  - components/
+  - pages/
+  - services/
+
+/backend
+  - prisma/
+  - routes/
+  - controllers/
+  - uploads/
+  - cortes/
+  - .env
+  - server.js
+
+/.replit
+/replit.nix
+```
+
+---
+
+### 🔐 `.env` esperado
+
+```env
+DATABASE_URL=postgresql://usuario:senha@localhost:5432/banco
+INSTAGRAM_TOKEN=...
+FACEBOOK_TOKEN=...
+YOUTUBE_TOKEN=...
+TIKTOK_TOKEN=...
+```
+
+---
+
+Monte esse sistema completo localmente e rode com `npm run dev` tanto no front quanto no back. Gere os vídeos usando `ffmpeg` e automatize o envio com filas se possível (ex: Bull).
+
+---
+
+Se quiser que eu gere algum trecho de código inicial já pronto, só pedir.

@@ -1,9 +1,9 @@
-
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/client"
 }
 
 datasource db {
@@ -12,8 +12,8 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(cuid())
-  username String @unique
+  id       String  @id @default(cuid())
+  username String  @unique
   password String
   videos   Video[]
 
@@ -24,13 +24,13 @@ model Video {
   id           String   @id @default(cuid())
   filename     String
   originalName String   @map("original_name")
-  duration     Int?     // in seconds
+  duration     Int? // in seconds
   filePath     String   @map("file_path")
   fileSize     Int      @map("file_size")
   uploadedAt   DateTime @default(now()) @map("uploaded_at")
   userId       String?  @map("user_id")
-  
-  user           User?            @relation(fields: [userId], references: [id])
+
+  user           User?           @relation(fields: [userId], references: [id])
   cuts           Cut[]
   processingJobs ProcessingJob[]
 
@@ -44,15 +44,15 @@ model Cut {
   description String?
   hashtags    String?
   startTime   Int       @map("start_time") // in seconds
-  endTime     Int       @map("end_time")   // in seconds
-  duration    Int       // in seconds
+  endTime     Int       @map("end_time") // in seconds
+  duration    Int // in seconds
   filePath    String?   @map("file_path")
   status      String    @default("pending") // pending, processing, ready, posted, error
-  platforms   Json      @default("{}")     // {instagram: true, youtube: false, etc}
-  obfuscation Json      @default("{}")     // obfuscation settings
+  platforms   Json      @default("{}") // {instagram: true, youtube: false, etc}
+  obfuscation Json      @default("{}") // obfuscation settings
   createdAt   DateTime  @default(now()) @map("created_at")
   processedAt DateTime? @map("processed_at")
-  
+
   video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@map("cuts")
@@ -68,7 +68,7 @@ model ProcessingJob {
   createdAt   DateTime  @default(now()) @map("created_at")
   startedAt   DateTime? @map("started_at")
   completedAt DateTime? @map("completed_at")
-  
+
   video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@map("processing_jobs")
