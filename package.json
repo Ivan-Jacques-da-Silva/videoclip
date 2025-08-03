@@ -8,12 +8,12 @@
     "build": "vite build && esbuild backend/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset --force",
-    "db:setup": "prisma generate && prisma db push",
-    "db:studio": "prisma studio"
+    "db:generate": "prisma generate --schema=backend/prisma/schema.prisma",
+    "db:push": "prisma db push --schema=backend/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=backend/prisma/schema.prisma",
+    "db:reset": "bash backend/scripts/reset-database.sh",
+    "db:setup": "bash backend/scripts/setup-database.sh",
+    "db:studio": "prisma studio --schema=backend/prisma/schema.prisma"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
