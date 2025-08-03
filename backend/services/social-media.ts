@@ -36,6 +36,29 @@ export class SocialMediaService {
     return SocialMediaService.instance;
   }
 
+  // Validate API credentials on startup
+  validateCredentials() {
+    const requiredEnvVars = [
+      'YOUTUBE_CLIENT_ID',
+      'YOUTUBE_CLIENT_SECRET', 
+      'INSTAGRAM_APP_ID',
+      'INSTAGRAM_APP_SECRET',
+      'FACEBOOK_APP_ID',
+      'FACEBOOK_APP_SECRET',
+      'TIKTOK_CLIENT_KEY',
+      'TIKTOK_CLIENT_SECRET'
+    ];
+
+    const missing = requiredEnvVars.filter(envVar => !process.env[envVar]);
+    
+    if (missing.length > 0) {
+      console.warn('Missing environment variables for social media APIs:', missing);
+      console.warn('Please check your .env file and API_SETUP.md for configuration instructions');
+    }
+
+    return missing.length === 0;
+  }
+
   getConnectionStatus() {
     return {
       instagram: this.config.instagram.connected,
