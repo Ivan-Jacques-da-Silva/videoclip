@@ -6,6 +6,7 @@ import VideoPlayer from "@/components/VideoPlayer";
 import ProcessingQueue from "@/components/ProcessingQueue";
 import CutsList from "@/components/CutsList";
 import EditCutModal from "@/components/EditCutModal";
+import SocialMediaPlatform from "@/components/SocialMediaPlatform";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,18 +70,30 @@ export default function Dashboard() {
               <CardContent className="pt-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Social Media</h2>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-pink-500 rounded flex items-center justify-center text-white text-xs">
-                        IG
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Instagram</p>
-                        <p className="text-sm text-gray-600">Connected</p>
-                      </div>
-                    </div>
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  </div>
+                  <SocialMediaPlatform 
+                    platform="instagram"
+                    name="Instagram"
+                    icon="IG"
+                    color="bg-pink-500"
+                  />
+                  <SocialMediaPlatform 
+                    platform="youtube"
+                    name="YouTube"
+                    icon="YT"
+                    color="bg-red-500"
+                  />
+                  <SocialMediaPlatform 
+                    platform="tiktok"
+                    name="TikTok"
+                    icon="TT"
+                    color="bg-black"
+                  />
+                  <SocialMediaPlatform 
+                    platform="facebook"
+                    name="Facebook"
+                    icon="FB"
+                    color="bg-blue-500"
+                  />
 
                   <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                     <div className="flex items-center space-x-3">
