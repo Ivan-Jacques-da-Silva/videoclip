@@ -4,7 +4,9 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "NODE_ENV=development tsx backend/index.ts",
+    "dev": "vite",
+    "dev:backend": "NODE_ENV=development tsx backend/index.ts",
+    "dev:full": "concurrently \"npm run dev:backend\" \"npm run dev\"",
     "build": "tsc && npm run build:client",
     "build:client": "cd client && npm run build",
     "start": "node dist/index.js",
@@ -53,6 +55,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "concurrently": "^9.2.0",
     "connect-pg-simple": "^10.0.0",
     "date-fns": "^3.6.0",
     "dotenv": "^17.2.1",
