@@ -44,7 +44,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <StatsCards />
 
@@ -64,7 +64,7 @@ export default function Dashboard() {
           {/* Right Column: Cut Management & Social Media */}
           <div className="space-y-6">
             <CutsList onEditCut={handleEditCut} />
-            
+
             {/* Social Media Integration */}
             <Card>
               <CardContent className="pt-6">
@@ -174,7 +174,7 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">

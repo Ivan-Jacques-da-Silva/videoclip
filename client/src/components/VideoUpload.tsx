@@ -22,16 +22,16 @@ export default function VideoUpload({ onVideoSelect }: VideoUploadProps) {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('video', file);
-      
+
       const response = await fetch('/api/videos/upload', {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!response.ok) {
         throw new Error('Upload failed');
       }
-      
+
       return response.json();
     },
     onSuccess: (video: Video) => {
@@ -59,11 +59,11 @@ export default function VideoUpload({ onVideoSelect }: VideoUploadProps) {
         },
         body: JSON.stringify({ url }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Download failed');
       }
-      
+
       return response.json();
     },
     onSuccess: (video: Video) => {
@@ -108,7 +108,7 @@ export default function VideoUpload({ onVideoSelect }: VideoUploadProps) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       handleFileSelect(files[0]);
@@ -140,23 +140,67 @@ export default function VideoUpload({ onVideoSelect }: VideoUploadProps) {
     }
   };
 
-  const handleYouTubeDownload = () => {
+  const handleYouTubeDownload = async () => {
     if (!youtubeUrl.trim()) {
       toast({
-        title: "URL required",
-        description: "Please enter a YouTube URL.",
+        title: "Error",
+        description: "Please enter a YouTube URL",
         variant: "destructive",
       });
       return;
     }
-    youtubeMutation.mutate(youtubeUrl);
+
+    // Basic YouTube URL validation
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
+    if (!youtubeRegex.test(youtubeUrl)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid YouTube URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsDownloading(true);
+
+      const response = await fetch("/api/videos/download-youtube", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: youtubeUrl }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to download video");
+      }
+
+      const video = await response.json();
+      toast({
+        title: "Success! 🎉",
+        description: `Video "${video.originalName}" downloaded successfully`,
+      });
+
+      setYoutubeUrl("");
+      onVideoUploaded?.();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to download video",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
     <Card>
       <CardContent className="p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Add New Video</h2>
-        
+
         {/* Upload Mode Selector */}
         <div className="flex space-x-2 mb-4">
           <Button
@@ -196,7 +240,7 @@ export default function VideoUpload({ onVideoSelect }: VideoUploadProps) {
               onChange={handleFileInputChange}
               className="hidden"
             />
-            
+
             <CloudUpload className="h-12 w-12 text-gray-400 mb-4 mx-auto" />
             <p className="text-lg text-gray-600 mb-2">
               {uploadMutation.isPending 
@@ -234,7 +278,7 @@ export default function VideoUpload({ onVideoSelect }: VideoUploadProps) {
             </div>
           </div>
         )}
-        
+
         <div className="mt-4 flex items-center text-sm text-gray-500">
           <Info className="h-4 w-4 mr-2" />
           {uploadMode === "file" 

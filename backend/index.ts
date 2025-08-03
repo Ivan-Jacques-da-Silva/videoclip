@@ -48,7 +48,8 @@ const server = await registerRoutes(app);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, "0.0.0.0", () => {
-  log(`Server running on port ${PORT}`);
+  log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+  log(`📱 Frontend accessible at: http://localhost:${PORT}`);
   if (!process.env.DATABASE_URL) {
     log('⚠️  DATABASE_URL not configured. Please check your .env file.');
   }
