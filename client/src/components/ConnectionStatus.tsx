@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,53 @@ interface PlatformConnectionData {
 }
 
 export default function ConnectionStatus() {
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [apiVersion, setApiVersion] = useState<string>('');
+  const [routeTests, setRouteTests] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      const routes = [
+        '/api/health',
+        '/api/videos',
+        '/api/cuts',
+        '/api/social-media/status',
+        '/api/processing-jobs'
+      ];
+
+      const testResults: Record<string, boolean> = {};
+
+      try {
+        // Test main health endpoint
+        const healthResponse = await fetch('/api/health');
+        if (healthResponse.ok) {
+          const data = await healthResponse.json();
+          setBackendStatus('connected');
+          setApiVersion(data.version || '1.0.0');
+        } else {
+          setBackendStatus('disconnected');
+        }
+
+        // Test all routes
+        for (const route of routes) {
+          try {
+            const response = await fetch(route);
+            testResults[route] = response.ok || response.status === 404; // 404 is ok for empty endpoints
+          } catch {
+            testResults[route] = false;
+          }
+        }
+
+        setRouteTests(testResults);
+      } catch (error) {
+        setBackendStatus('disconnected');
+      }
+    };
+
+    checkConnection();
+    const interval = setInterval(checkConnection, 30000);
+    return () => clearInterval(interval);
+  }, []);
   const [selectedPlatform, setSelectedPlatform] = useState<string>("");
   const [connectionData, setConnectionData] = useState<PlatformConnectionData>({
     accessToken: "",
@@ -117,7 +163,7 @@ export default function ConnectionStatus() {
 
   const getStatusBadge = (platform: string) => {
     const isConnected = status && status[platform]?.connected;
-    
+
     return (
       <Badge variant={isConnected ? "default" : "secondary"} className="ml-2">
         {isConnected ? (
@@ -146,7 +192,7 @@ export default function ConnectionStatus() {
                 <span className="font-medium">{platform.name}</span>
                 {getStatusBadge(platform.id)}
               </div>
-              
+
               <div className="flex gap-2">
                 {status && status[platform.id]?.connected ? (
                   <Button
@@ -250,6 +296,88 @@ export default function ConnectionStatus() {
           </div>
         )}
       </CardContent>
+       <CardContent>
+         <ConnectionInfo />
+       </CardContent>
     </Card>
+  );
+}
+
+function ConnectionInfo() {
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [apiVersion, setApiVersion] = useState<string>('');
+  const [routeTests, setRouteTests] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      const routes = [
+        '/api/health',
+        '/api/videos',
+        '/api/cuts',
+        '/api/social-media/status',
+        '/api/processing-jobs'
+      ];
+
+      const testResults: Record<string, boolean> = {};
+
+      try {
+        // Test main health endpoint
+        const healthResponse = await fetch('/api/health');
+        if (healthResponse.ok) {
+          const data = await healthResponse.json();
+          setBackendStatus('connected');
+          setApiVersion(data.version || '1.0.0');
+        } else {
+          setBackendStatus('disconnected');
+        }
+
+        // Test all routes
+        for (const route of routes) {
+          try {
+            const response = await fetch(route);
+            testResults[route] = response.ok || response.status === 404; // 404 is ok for empty endpoints
+          } catch {
+            testResults[route] = false;
+          }
+        }
+
+        setRouteTests(testResults);
+      } catch (error) {
+        setBackendStatus('disconnected');
+      }
+    };
+
+    checkConnection();
+    const interval = setInterval(checkConnection, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm">
+        <div className={`h-2 w-2 rounded-full ${
+          backendStatus === 'checking' ? 'bg-yellow-500 animate-pulse' :
+          backendStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'
+        }`} />
+        <span className="text-muted-foreground">
+          Backend: {backendStatus === 'checking' ? 'Checking...' : 
+                   backendStatus === 'connected' ? `Connected (v${apiVersion})` : 'Disconnected'}
+        </span>
+      </div>
+
+      {Object.keys(routeTests).length > 0 && (
+        <div className="text-xs space-y-1">
+          <div className="font-medium text-muted-foreground">API Routes Status:</div>
+          {Object.entries(routeTests).map(([route, status]) => (
+            <div key={route} className="flex items-center gap-2">
+              <div className={`h-1.5 w-1.5 rounded-full ${status ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span className={status ? 'text-green-600' : 'text-red-600'}>
+                {route} {status ? '✓' : '✗'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

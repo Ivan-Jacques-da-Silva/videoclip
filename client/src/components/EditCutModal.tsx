@@ -55,6 +55,44 @@ export default function EditCutModal({ cut, onClose, onSave }: EditCutModalProps
     },
   });
 
+  const publishMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/cuts/${cut.id}/publish-all`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          description,
+          hashtags,
+          platforms,
+          obfuscation,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to publish to social media');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Published successfully",
+        description: "Your video has been published to all selected platforms.",
+      });
+      onSave();
+    },
+    onError: (error) => {
+      toast({
+        title: "Publishing failed",
+        description: error instanceof Error ? error.message : "Failed to publish to social media",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSave = () => {
     updateMutation.mutate({
       title,
@@ -62,6 +100,21 @@ export default function EditCutModal({ cut, onClose, onSave }: EditCutModalProps
       hashtags,
       platforms,
       obfuscation,
+    });
+  };
+
+  const handlePublishToAll = () => {
+    // First save, then publish
+    updateMutation.mutate({
+      title,
+      description,
+      hashtags,
+      platforms,
+      obfuscation,
+    }, {
+      onSuccess: () => {
+        publishMutation.mutate();
+      }
     });
   };
 
@@ -203,8 +256,12 @@ export default function EditCutModal({ cut, onClose, onSave }: EditCutModalProps
           <Button onClick={handleSave} disabled={updateMutation.isPending}>
             {updateMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
-          <Button className="bg-green-600 hover:bg-green-700">
-            Save & Publish
+          <Button 
+            className="bg-green-600 hover:bg-green-700"
+            onClick={handlePublishToAll}
+            disabled={updateMutation.isPending || publishMutation.isPending}
+          >
+            {publishMutation.isPending ? "Publishing..." : "Save & Publish to All"}
           </Button>
         </div>
       </DialogContent>
