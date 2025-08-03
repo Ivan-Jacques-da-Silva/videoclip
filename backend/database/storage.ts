@@ -1,76 +1,113 @@
 
-import { db } from "./db";
-import { videos, cuts, processingJobs, users } from "../../shared/schema";
-import { eq, desc } from "drizzle-orm";
-import type { InsertVideo, InsertCut, InsertProcessingJob, Video, Cut, ProcessingJob } from "../../shared/schema";
+import { prisma } from "./prisma";
+import type { Prisma } from "@prisma/client";
 
 export class StorageService {
   async getStats() {
-    const [videosCount] = await db.select({ count: db.$count(videos) }).from(videos);
-    const [cutsCount] = await db.select({ count: db.$count(cuts) }).from(cuts);
-    const [activeCuts] = await db.select({ count: db.$count(cuts) }).from(cuts).where(eq(cuts.status, 'ready'));
+    const [videosCount, cutsCount, activeCuts] = await Promise.all([
+      prisma.video.count(),
+      prisma.cut.count(),
+      prisma.cut.count({ where: { status: 'ready' } })
+    ]);
     
     return {
-      videosUploaded: videosCount.count.toString(),
-      cutsGenerated: cutsCount.count.toString(),
+      videosUploaded: videosCount.toString(),
+      cutsGenerated: cutsCount.toString(),
       postsScheduled: "0",
-      activePlatforms: activeCuts.count.toString()
+      activePlatforms: activeCuts.toString()
     };
   }
 
-  async createVideo(videoData: InsertVideo): Promise<Video> {
-    const [video] = await db.insert(videos).values(videoData).returning();
-    return video;
+  async createVideo(videoData: Prisma.VideoCreateInput) {
+    return await prisma.video.create({
+      data: videoData
+    });
   }
 
-  async getAllVideos(): Promise<Video[]> {
-    return await db.select().from(videos).orderBy(desc(videos.uploadedAt));
+  async getAllVideos() {
+    return await prisma.video.findMany({
+      orderBy: { uploadedAt: 'desc' },
+      include: {
+        cuts: true,
+        processingJobs: true
+      }
+    });
   }
 
-  async getVideo(id: string): Promise<Video | undefined> {
-    const [video] = await db.select().from(videos).where(eq(videos.id, id));
-    return video;
+  async getVideo(id: string) {
+    return await prisma.video.findUnique({
+      where: { id },
+      include: {
+        cuts: true,
+        processingJobs: true
+      }
+    });
   }
 
-  async createCut(cutData: InsertCut): Promise<Cut> {
-    const [cut] = await db.insert(cuts).values(cutData).returning();
-    return cut;
+  async createCut(cutData: Prisma.CutCreateInput) {
+    return await prisma.cut.create({
+      data: cutData
+    });
   }
 
-  async getAllCuts(): Promise<Cut[]> {
-    return await db.select().from(cuts).orderBy(desc(cuts.createdAt));
+  async getAllCuts() {
+    return await prisma.cut.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        video: true
+      }
+    });
   }
 
-  async getCutsByVideo(videoId: string): Promise<Cut[]> {
-    return await db.select().from(cuts).where(eq(cuts.videoId, videoId));
+  async getCutsByVideo(videoId: string) {
+    return await prisma.cut.findMany({
+      where: { videoId },
+      orderBy: { createdAt: 'desc' }
+    });
   }
 
-  async getCut(id: string): Promise<Cut | undefined> {
-    const [cut] = await db.select().from(cuts).where(eq(cuts.id, id));
-    return cut;
+  async getCut(id: string) {
+    return await prisma.cut.findUnique({
+      where: { id },
+      include: {
+        video: true
+      }
+    });
   }
 
-  async updateCut(id: string, updates: Partial<Cut>): Promise<Cut> {
-    const [cut] = await db.update(cuts).set(updates).where(eq(cuts.id, id)).returning();
-    return cut;
+  async updateCut(id: string, updates: Prisma.CutUpdateInput) {
+    return await prisma.cut.update({
+      where: { id },
+      data: updates
+    });
   }
 
-  async deleteCut(id: string): Promise<void> {
-    await db.delete(cuts).where(eq(cuts.id, id));
+  async deleteCut(id: string) {
+    await prisma.cut.delete({
+      where: { id }
+    });
   }
 
-  async createProcessingJob(jobData: InsertProcessingJob): Promise<ProcessingJob> {
-    const [job] = await db.insert(processingJobs).values(jobData).returning();
-    return job;
+  async createProcessingJob(jobData: Prisma.ProcessingJobCreateInput) {
+    return await prisma.processingJob.create({
+      data: jobData
+    });
   }
 
-  async getAllProcessingJobs(): Promise<ProcessingJob[]> {
-    return await db.select().from(processingJobs).orderBy(desc(processingJobs.createdAt));
+  async getAllProcessingJobs() {
+    return await prisma.processingJob.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        video: true
+      }
+    });
   }
 
-  async updateProcessingJob(id: string, updates: Partial<ProcessingJob>): Promise<ProcessingJob> {
-    const [job] = await db.update(processingJobs).set(updates).where(eq(processingJobs.id, id)).returning();
-    return job;
+  async updateProcessingJob(id: string, updates: Prisma.ProcessingJobUpdateInput) {
+    return await prisma.processingJob.update({
+      where: { id },
+      data: updates
+    });
   }
 }
 

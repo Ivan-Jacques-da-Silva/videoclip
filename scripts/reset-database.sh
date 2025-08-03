@@ -10,15 +10,13 @@ if [ "$confirm" != "RESET" ]; then
     exit 1
 fi
 
-echo "🗑️  Removendo todas as tabelas..."
+echo "🗑️  Resetando banco de dados..."
 
-# Conectar ao banco e dropar todas as tabelas
-npx drizzle-kit drop
+# Reset completo do banco usando Prisma
+npx prisma migrate reset --force
 
-echo "🔄 Recriando estrutura do banco..."
-
-# Recriar as tabelas
-npx drizzle-kit push
+echo "🔧 Gerando cliente Prisma..."
+npx prisma generate
 
 echo "✅ Banco resetado com sucesso!"
 echo "🎯 Execute: npm run dev para iniciar a aplicação"

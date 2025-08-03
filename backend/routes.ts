@@ -6,7 +6,38 @@ import { SocialMediaService } from "./services/social-media";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertVideoSchema, insertCutSchema, insertProcessingJobSchema } from "@shared/schema";
+import { z } from "zod";
+
+// Schemas de validação
+const insertVideoSchema = z.object({
+  filename: z.string(),
+  originalName: z.string(),
+  duration: z.number().optional(),
+  filePath: z.string(),
+  fileSize: z.number(),
+  userId: z.string().optional().nullable(),
+});
+
+const insertCutSchema = z.object({
+  videoId: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  hashtags: z.string().optional(),
+  startTime: z.number(),
+  endTime: z.number(),
+  duration: z.number(),
+  filePath: z.string().optional(),
+  status: z.string().default("pending"),
+  platforms: z.record(z.boolean()).default({}),
+  obfuscation: z.record(z.any()).default({}),
+});
+
+const insertProcessingJobSchema = z.object({
+  videoId: z.string(),
+  cutPoints: z.string(),
+  status: z.string().default("queued"),
+  progress: z.number().default(0),
+});
 import { FFmpegService } from "./services/ffmpeg";
 
 // Configure multer for file uploads
@@ -204,9 +235,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const jobData = {
-        videoId: video.id,
+        video: { connect: { id: video.id } },
         cutPoints,
-        status: 'queued' as const,
+        status: 'queued',
         progress: 0,
       };
 
@@ -319,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (let i = 0; i < cutRanges.length; i++) {
         const cutData = {
-          videoId: video.id,
+          video: { connect: { id: video.id } },
           title: `Cut ${i + 1}`,
           description: `Auto-generated cut from ${cutRanges[i].start} to ${cutRanges[i].end}`,
           hashtags: '',
@@ -327,7 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           endTime: ffmpegService['timeStringToSeconds'](cutRanges[i].end),
           duration: cutRanges[i].duration,
           filePath: outputPaths[i],
-          status: 'ready' as const,
+          status: 'ready',
           platforms: {},
           obfuscation: {},
         };

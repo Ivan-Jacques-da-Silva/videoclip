@@ -1,7 +1,7 @@
 
-# 🗄️ Configuração do Banco de Dados
+# 🗄️ Configuração do Banco de Dados com Prisma
 
-## 📋 Passos para configurar o PostgreSQL no Replit:
+## 📋 Passos para configurar o PostgreSQL + Prisma no Replit:
 
 ### 1. Criar o Banco de Dados
 1. **Abra uma nova aba** no Replit
@@ -9,7 +9,7 @@
 3. **Clique em "Create a database"**
 4. **Aguarde a criação** - A variável `DATABASE_URL` será criada automaticamente
 
-### 2. Configurar o Schema
+### 2. Configurar o Schema com Prisma
 Execute o script de configuração:
 ```bash
 npm run db:setup
@@ -28,12 +28,39 @@ npm run db:reset
 npm run dev
 ```
 
+### Abrir Prisma Studio (Interface Visual):
+```bash
+npm run db:studio
+```
+
 ### Verificar tabelas criadas:
-O script criará automaticamente estas tabelas:
+O Prisma criará automaticamente estas tabelas:
 - ✅ `users` - Usuários do sistema
 - ✅ `videos` - Vídeos enviados
 - ✅ `cuts` - Cortes gerados
 - ✅ `processing_jobs` - Jobs de processamento
+
+## 🛠️ Comandos Prisma Úteis
+
+### Gerar cliente após mudanças no schema:
+```bash
+npm run db:generate
+```
+
+### Aplicar mudanças no schema:
+```bash
+npm run db:push
+```
+
+### Criar migração:
+```bash
+npm run db:migrate
+```
+
+### Abrir Prisma Studio:
+```bash
+npm run db:studio
+```
 
 ## ⚠️ Problemas Comuns
 
@@ -45,13 +72,24 @@ O script criará automaticamente estas tabelas:
 - O banco pode estar "dormindo" - Execute uma query para acordá-lo
 - Aguarde alguns segundos e tente novamente
 
-### Erro: "Permission denied"
-- Execute: `chmod +x scripts/*.sh`
-- Ou use: `bash scripts/setup-database.sh`
+### Erro: "Prisma Client not generated"
+- Execute: `npm run db:generate`
+- Reinicie o servidor: `npm run dev`
 
 ## 🎯 Próximos Passos
 
-1. ✅ Configurar banco de dados (este passo)
+1. ✅ Configurar banco de dados com Prisma (este passo)
 2. 📝 Configurar APIs sociais (veja `API_SETUP.md`)
 3. 🚀 Executar aplicação: `npm run dev`
 4. 🌐 Acessar: `http://localhost:5000`
+5. 🔍 Explorar dados: `npm run db:studio`
+
+## 🆚 Prisma vs Drizzle
+
+**Vantagens do Prisma:**
+- ✅ Interface visual (Prisma Studio)
+- ✅ Migrações automáticas
+- ✅ Type-safety completo
+- ✅ Introspection de banco existente
+- ✅ Documentação extensiva
+- ✅ Relacionamentos simples
