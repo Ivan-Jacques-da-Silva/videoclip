@@ -7,7 +7,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertVideoSchema, insertCutSchema, insertProcessingJobSchema } from "@shared/schema";
-import { FFmpegService } from "../server/services/ffmpeg";
+import { FFmpegService } from "./services/ffmpeg";
 
 // Configure multer for file uploads
 const uploadDir = 'uploads';
