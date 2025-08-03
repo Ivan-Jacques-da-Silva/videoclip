@@ -348,7 +348,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
 
+      // Aplicar obfuscação automaticamente em todos os cortes
+      const obfuscatedPaths: string[] = [];
+      for (let i = 0; i < outputPaths.length; i++) {
+        const originalPath = outputPaths[i];
+        const obfuscatedPath = originalPath.replace('.mp4', '_obfuscated.mp4');
+        
+        // Aplicar obfuscação com variações aleatórias
+        await ffmpegService.obfuscateVideo(originalPath, obfuscatedPath, {
+          adjustBitrate: Math.random() > 0.5,
+          adjustBrightness: Math.random() > 0.5,
+          modifyMetadata: true
+        });
+        
+        // Remover arquivo original e usar o obfuscado
+        fs.unlinkSync(originalPath);
+        obfuscatedPaths.push(obfuscatedPath);
+      }
+
       for (let i = 0; i < cutRanges.length; i++) {
+        const obfuscationSettings = {
+          metadataModified: true,
+          bitrateAdjusted: Math.random() > 0.5,
+          brightnessAdjusted: Math.random() > 0.5,
+          fingerprintVariation: true,
+          processedAt: new Date().toISOString(),
+          originalFingerprint: `${Date.now()}_${i}`,
+          obfuscatedFingerprint: `obf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        };
+
         const cutData = {
           video: { connect: { id: video.id } },
           title: `Cut ${i + 1}`,
@@ -357,10 +385,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           startTime: ffmpegService['timeStringToSeconds'](cutRanges[i].start),
           endTime: ffmpegService['timeStringToSeconds'](cutRanges[i].end),
           duration: cutRanges[i].duration,
-          filePath: outputPaths[i],
+          filePath: obfuscatedPaths[i],
           status: 'ready',
           platforms: {},
-          obfuscation: {},
+          obfuscation: obfuscationSettings,
         };
 
         await storage.createCut(cutData);
