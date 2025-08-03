@@ -178,6 +178,11 @@ if [ ! -f "backend/index.ts" ]; then
     exit 1
 fi
 
+if [ ! -f "prisma/schema.prisma" ]; then
+    log_error "Schema do Prisma não encontrado"
+    exit 1
+fi
+
 log_success "Arquivos de configuração verificados"
 
 # 10. Verificar se as pastas necessárias existem
