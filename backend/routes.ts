@@ -1,4 +1,3 @@
-
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./database/storage";
@@ -7,7 +6,8 @@ import { SocialMediaService } from "./services/social-media";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { FFmpegService } from "./services/ffmpeg";
+import { insertVideoSchema, insertCutSchema, insertProcessingJobSchema } from "@shared/schema";
+import { FFmpegService } from "../server/services/ffmpeg";
 
 // Configure multer for file uploads
 const uploadDir = 'uploads';
@@ -53,7 +53,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const originalPath = req.file.path;
       const finalPath = path.join('uploads', `${Date.now()}_${req.file.originalname}`);
-      
+
       fs.renameSync(originalPath, finalPath);
 
       const videoInfo = await ffmpegService.getVideoInfo(finalPath);
@@ -79,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/videos/download-youtube", async (req, res) => {
     try {
       const { url } = req.body;
-      
+
       if (!url) {
         return res.status(400).json({ message: "YouTube URL is required" });
       }
@@ -179,7 +179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!video) {
         return res.status(404).json({ message: "Video not found" });
       }
-      
+
       if (!fs.existsSync(video.filePath)) {
         return res.status(404).json({ message: "Video file not found" });
       }
@@ -282,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!cut || !cut.filePath) {
         return res.status(404).json({ message: "Cut not found" });
       }
-      
+
       if (!fs.existsSync(cut.filePath)) {
         return res.status(404).json({ message: "Cut file not found" });
       }
@@ -307,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const cutRanges = ffmpegService.parseCutPoints(cutPoints, video.duration);
-      
+
       const outputPaths = await ffmpegService.generateCuts(
         video.filePath,
         cutsDir,
