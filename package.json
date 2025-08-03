@@ -5,15 +5,16 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx backend/index.ts",
-    "build": "vite build && esbuild backend/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "NODE_ENV=production node dist/index.js",
-    "check": "tsc",
-    "db:generate": "prisma generate --schema=backend/prisma/schema.prisma",
-    "db:push": "prisma db push --schema=backend/prisma/schema.prisma",
-    "db:migrate": "prisma migrate dev --schema=backend/prisma/schema.prisma",
-    "db:reset": "bash backend/scripts/reset-database.sh",
-    "db:setup": "bash backend/scripts/setup-database.sh",
-    "db:studio": "prisma studio --schema=backend/prisma/schema.prisma"
+    "build": "tsc && npm run build:client",
+    "build:client": "cd client && npm run build",
+    "start": "node dist/index.js",
+    "setup": "chmod +x backend/scripts/full-setup.sh && ./backend/scripts/full-setup.sh",
+    "db:setup": "chmod +x backend/scripts/setup-database.sh && ./backend/scripts/setup-database.sh",
+    "db:reset": "chmod +x backend/scripts/reset-database.sh && ./backend/scripts/reset-database.sh",
+    "db:studio": "npx prisma studio --schema=backend/prisma/schema.prisma",
+    "db:migrate": "npx prisma migrate dev --schema=backend/prisma/schema.prisma",
+    "db:push": "npx prisma db push --schema=backend/prisma/schema.prisma",
+    "db:generate": "npx prisma generate --schema=backend/prisma/schema.prisma"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
