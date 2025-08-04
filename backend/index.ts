@@ -1,3 +1,8 @@
+// Definir NODE_ENV se não estiver definido
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'development';
+}
+
 import dotenv from 'dotenv';
 dotenv.config();
 
