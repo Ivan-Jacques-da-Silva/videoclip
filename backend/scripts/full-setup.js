@@ -124,13 +124,41 @@ async function main() {
       }
 
       // Configurar banco e usuário usando o usuário postgres
-      writeDB('Criando banco de dados e usuário...');
+      writeDB('Limpando e recriando banco de dados e usuário...');
       
+      // 1. Primeiro, terminar todas as conexões ativas no banco
+      writeDB('Terminando conexões ativas...');
+      try {
+        execSync(`psql -U postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${DB_NAME}' AND pid <> pg_backend_pid();"`, { 
+          stdio: 'pipe',
+          env: { ...process.env, PGPASSWORD: 'admin' }
+        });
+      } catch (error) {
+        writeWarning('Nenhuma conexão ativa encontrada para terminar');
+      }
+
+      // 2. Dropar banco e usuário se existirem
+      writeDB('Removendo banco e usuário existentes...');
+      const cleanupCommands = [
+        `psql -U postgres -c "DROP DATABASE IF EXISTS ${DB_NAME};"`,
+        `psql -U postgres -c "DROP USER IF EXISTS ${DB_USER};"`
+      ];
+
+      for (const command of cleanupCommands) {
+        try {
+          execSync(command, { 
+            stdio: 'pipe',
+            env: { ...process.env, PGPASSWORD: 'admin' }
+          });
+          writeSuccess(`Comando executado: ${command}`);
+        } catch (error) {
+          writeWarning(`Falha esperada: ${command} - ${error.message}`);
+        }
+      }
+
+      // 3. Criar banco e usuário do zero
+      writeDB('Criando novo banco e usuário...');
       const setupCommands = [
-        // Dropar banco se existir
-        `psql -U postgres -c "DROP DATABASE IF EXISTS ${DB_NAME};" 2>/dev/null || true`,
-        // Dropar usuário se existir
-        `psql -U postgres -c "DROP USER IF EXISTS ${DB_USER};" 2>/dev/null || true`,
         // Criar banco
         `psql -U postgres -c "CREATE DATABASE ${DB_NAME};"`,
         // Criar usuário
@@ -148,21 +176,29 @@ async function main() {
 
       for (const command of setupCommands) {
         try {
-          execSync(command, { stdio: 'pipe' });
+          execSync(command, { 
+            stdio: 'pipe',
+            env: { ...process.env, PGPASSWORD: 'admin' }
+          });
+          writeSuccess(`Executado: ${command.split('-c')[1]?.replace(/"/g, '').trim() || command}`);
         } catch (error) {
-          writeWarning(`Comando falhou (pode ser normal): ${command}`);
+          writeError(`Falha ao executar: ${command}`);
+          writeError(`Erro: ${error.message}`);
+          process.exit(1);
         }
       }
 
       // Testar conexão com o novo usuário
+      writeDB('Testando conexão com novo usuário...');
       try {
         execSync(`psql -U ${DB_USER} -d ${DB_NAME} -c "SELECT version();" -h ${DB_HOST}`, { 
           stdio: 'pipe',
           env: { ...process.env, PGPASSWORD: DB_PASSWORD }
         });
-        writeSuccess('Conexão com novo usuário testada');
+        writeSuccess('Conexão com novo usuário testada com sucesso');
       } catch (error) {
         writeError(`Falha ao conectar com ${DB_USER}: ${error.message}`);
+        writeError('Verificando se o PostgreSQL está rodando e se as credenciais estão corretas...');
         process.exit(1);
       }
 
@@ -248,15 +284,30 @@ SESSION_SECRET="videocutter_secret_key_2024_secure"
     }
     writeSuccess('Schema aplicado com sucesso');
 
-    // 6. Criar diretórios necessários
-    writeStep('Criando estrutura de diretórios...');
+    // 6. Limpar e recriar diretórios necessários
+    writeStep('Limpando e recriando estrutura de diretórios...');
     const directories = ['backend/uploads', 'backend/cuts', 'uploads'];
+    
     directories.forEach(dir => {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+      // Remover diretório se existir
+      if (fs.existsSync(dir)) {
+        try {
+          fs.rmSync(dir, { recursive: true, force: true });
+          writeSuccess(`Diretório ${dir} limpo`);
+        } catch (error) {
+          writeWarning(`Não foi possível limpar ${dir}: ${error.message}`);
+        }
+      }
+      
+      // Recriar diretório
+      fs.mkdirSync(dir, { recursive: true });
+      
+      // Criar arquivo .gitkeep se for um diretório do backend
+      if (dir.startsWith('backend/')) {
+        fs.writeFileSync(path.join(dir, '.gitkeep'), '', 'utf8');
       }
     });
-    writeSuccess('Estrutura de diretórios criada');
+    writeSuccess('Estrutura de diretórios limpa e recriada');
 
     // 7. Teste de conectividade
     writeStep('Testando conectividade com o banco...');
