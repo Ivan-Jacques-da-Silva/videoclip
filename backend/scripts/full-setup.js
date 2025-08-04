@@ -61,6 +61,23 @@ writeInfo(`Diretório do projeto: ${PROJECT_ROOT}`);
 writeInfo('Sistema: Node.js');
 console.log('');
 
+function runCommand(command, description, ignoreError = false) {
+  try {
+    writeInfo(`Executando: ${description}`);
+    execSync(command, { stdio: 'pipe' });
+    writeSuccess(`${description} - Concluído`);
+    return true;
+  } catch (error) {
+    if (ignoreError) {
+      writeWarning(`${description} - Aviso: ${error.message}`);
+      return false;
+    } else {
+      writeError(`${description} - Erro: ${error.message}`);
+      throw error;
+    }
+  }
+}
+
 async function main() {
   try {
     // 1. Detectar ambiente (Replit ou Local)
@@ -92,17 +109,68 @@ async function main() {
     } else {
       writeSuccess('Ambiente local detectado');
       
-      if (process.env.DATABASE_URL) {
-        DATABASE_URL = process.env.DATABASE_URL;
-        writeSuccess('DATABASE_URL encontrada no .env');
-      } else {
-        writeWarning('DATABASE_URL não configurada - usando PostgreSQL local');
-        DATABASE_URL = `postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public`;
-        writeInfo(`Usando: ${DATABASE_URL}`);
+      // Configurar PostgreSQL local
+      writeDB('Configurando PostgreSQL local...');
+      
+      // Primeiro, tentar conectar como postgres (usuário padrão)
+      try {
+        // Testar se PostgreSQL está rodando
+        execSync('psql --version', { stdio: 'pipe' });
+        writeSuccess('PostgreSQL instalado');
+      } catch {
+        writeError('PostgreSQL não está instalado ou não está no PATH');
+        writeInfo('Instale PostgreSQL e tente novamente');
+        process.exit(1);
       }
+
+      // Configurar banco e usuário usando o usuário postgres
+      writeDB('Criando banco de dados e usuário...');
+      
+      const setupCommands = [
+        // Dropar banco se existir
+        `psql -U postgres -c "DROP DATABASE IF EXISTS ${DB_NAME};" 2>/dev/null || true`,
+        // Dropar usuário se existir
+        `psql -U postgres -c "DROP USER IF EXISTS ${DB_USER};" 2>/dev/null || true`,
+        // Criar banco
+        `psql -U postgres -c "CREATE DATABASE ${DB_NAME};"`,
+        // Criar usuário
+        `psql -U postgres -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"`,
+        // Conceder privilégios
+        `psql -U postgres -c "ALTER USER ${DB_USER} CREATEDB;"`,
+        `psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};"`,
+        // Conectar ao banco e conceder privilégios no schema
+        `psql -U postgres -d ${DB_NAME} -c "GRANT ALL ON SCHEMA public TO ${DB_USER};"`,
+        `psql -U postgres -d ${DB_NAME} -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${DB_USER};"`,
+        `psql -U postgres -d ${DB_NAME} -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER};"`,
+        `psql -U postgres -d ${DB_NAME} -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${DB_USER};"`,
+        `psql -U postgres -d ${DB_NAME} -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${DB_USER};"`
+      ];
+
+      for (const command of setupCommands) {
+        try {
+          execSync(command, { stdio: 'pipe' });
+        } catch (error) {
+          writeWarning(`Comando falhou (pode ser normal): ${command}`);
+        }
+      }
+
+      // Testar conexão com o novo usuário
+      try {
+        execSync(`psql -U ${DB_USER} -d ${DB_NAME} -c "SELECT version();" -h ${DB_HOST}`, { 
+          stdio: 'pipe',
+          env: { ...process.env, PGPASSWORD: DB_PASSWORD }
+        });
+        writeSuccess('Conexão com novo usuário testada');
+      } catch (error) {
+        writeError(`Falha ao conectar com ${DB_USER}: ${error.message}`);
+        process.exit(1);
+      }
+
+      DATABASE_URL = `postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public`;
+      writeInfo(`DATABASE_URL configurada: ${DATABASE_URL}`);
     }
 
-    // 2. Criar arquivo .env se não existir
+    // 2. Criar arquivo .env
     writeStep('Configurando arquivo .env...');
 
     const envContent = `# Database Configuration
@@ -160,13 +228,19 @@ SESSION_SECRET="videocutter_secret_key_2024_secure"
     // 5. Aplicar schema ao banco de dados
     writeStep('Aplicando schema ao banco de dados...');
     try {
-      execSync('npx prisma db push --schema=backend/prisma/schema.prisma --accept-data-loss', { stdio: 'inherit' });
+      execSync('npx prisma db push --schema=backend/prisma/schema.prisma --accept-data-loss', { 
+        stdio: 'inherit',
+        env: { ...process.env, DATABASE_URL }
+      });
     } catch (error) {
       writeError('Falha ao aplicar schema ao banco');
       writeWarning('Tentando aplicar novamente...');
       await new Promise(resolve => setTimeout(resolve, 3000));
       try {
-        execSync('npx prisma db push --schema=backend/prisma/schema.prisma --accept-data-loss', { stdio: 'inherit' });
+        execSync('npx prisma db push --schema=backend/prisma/schema.prisma --accept-data-loss', { 
+          stdio: 'inherit',
+          env: { ...process.env, DATABASE_URL }
+        });
       } catch {
         writeError('Falha persistente ao aplicar schema');
         process.exit(1);
@@ -229,7 +303,10 @@ testConnection();
 `;
 
     fs.writeFileSync('temp_test.mjs', testScript);
-    execSync('node temp_test.mjs', { stdio: 'inherit' });
+    execSync('node temp_test.mjs', { 
+      stdio: 'inherit',
+      env: { ...process.env, DATABASE_URL }
+    });
     fs.unlinkSync('temp_test.mjs');
     writeSuccess('Teste de conectividade passou!');
 
@@ -247,6 +324,12 @@ testConnection();
     console.log('\x1b[32m   ✅ Arquivo .env: Configurado\x1b[0m');
     console.log('\x1b[32m   ✅ Estrutura de pastas: Criada\x1b[0m');
     console.log('\x1b[32m   ✅ Conectividade: Testada e aprovada\x1b[0m');
+    console.log('');
+    console.log('\x1b[37m🗄️  Credenciais do banco:\x1b[0m');
+    console.log(`\x1b[32m   ✅ Banco: ${DB_NAME}\x1b[0m`);
+    console.log(`\x1b[32m   ✅ Usuário: ${DB_USER}\x1b[0m`);
+    console.log(`\x1b[32m   ✅ Senha: ${DB_PASSWORD}\x1b[0m`);
+    console.log(`\x1b[32m   ✅ Host: ${DB_HOST}:${DB_PORT}\x1b[0m`);
     console.log('');
 
     writeSuccess('Backend configurado com sucesso! 🎉');
