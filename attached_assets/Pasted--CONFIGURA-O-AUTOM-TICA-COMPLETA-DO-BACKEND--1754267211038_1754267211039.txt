@@ -1,0 +1,44 @@
+🚀 CONFIGURAÇÃO AUTOMÁTICA COMPLETA DO BACKEND
+==============================================
+
+ℹ️  Diretório do projeto: C:\Users\Notebook\Downloads\videoclip
+ℹ️  Sistema: Node.js
+
+🔧 Detectando ambiente...
+✅ Ambiente local detectado
+⚠️  DATABASE_URL não configurada - usando PostgreSQL local
+ℹ️  Usando: postgresql://videocutter_user:admin@localhost:5432/videocutter_db?schema=public
+🔧 Configurando arquivo .env...
+✅ Arquivo .env criado/atualizado
+🔧 Verificando dependências do Node.js...
+✅ Dependências verificadas e instaladas
+🔧 Gerando cliente Prisma...
+Environment variables loaded from .env
+Prisma schema loaded from backend\prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.13.0) to .\backend\prisma\generated\client in 118ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+
+✅ Cliente Prisma gerado com sucesso
+🔧 Aplicando schema ao banco de dados...
+Environment variables loaded from .env
+Prisma schema loaded from backend\prisma\schema.prisma
+Datasource "db": PostgreSQL database "videocutter_db", schema "public" at "localhost:5432"
+
+Error: P1000: Authentication failed against database server, the provided database credentials for `videocutter_user` are not valid.
+
+Please make sure to provide valid database credentials for the database server at the configured address.
+❌ Falha ao aplicar schema ao banco
+⚠️  Tentando aplicar novamente...
+Environment variables loaded from .env
+Prisma schema loaded from backend\prisma\schema.prisma
+Datasource "db": PostgreSQL database "videocutter_db", schema "public" at "localhost:5432"
+
+Error: P1000: Authentication failed against database server, the provided database credentials for `videocutter_user` are not valid.
+
+Please make sure to provide valid database credentials for the database server at the configured address.
+❌ Falha persistente ao aplicar schema
+PS C:\Users\Notebook\Downloads\videoclip\backend\scripts> 
