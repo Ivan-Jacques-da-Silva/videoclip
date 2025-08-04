@@ -1,18 +1,30 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Settings, CheckCircle, XCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Settings, CheckCircle, XCircle } from "lucide-react";
+
+interface ConnectionStatus {
+  instagram: boolean;
+  youtube: boolean;
+  tiktok: boolean;
+  facebook: boolean;
+}
 
 interface PlatformConnectionData {
   accessToken: string;
   refreshToken?: string;
   pageId?: string;
+  clientId?: string;
+  clientSecret?: string;
+  apiKey?: string;
+  appId?: string;
+  appSecret?: string;
 }
 
 export default function ConnectionStatus() {
@@ -68,6 +80,11 @@ export default function ConnectionStatus() {
     accessToken: "",
     refreshToken: "",
     pageId: "",
+    clientId: "",
+    clientSecret: "",
+    apiKey: "",
+    appId: "",
+    appSecret: "",
   });
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -100,7 +117,11 @@ export default function ConnectionStatus() {
         description: `Connected to ${variables.platform} successfully!`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/social-media/status"] });
-      setConnectionData({ accessToken: "", refreshToken: "", pageId: "" });
+      setConnectionData({ accessToken: "", refreshToken: "", pageId: "",  clientId: "",
+      clientSecret: "",
+      apiKey: "",
+      appId: "",
+      appSecret: "" });
       setSelectedPlatform("");
     },
     onError: (error: Error) => {
@@ -155,10 +176,49 @@ export default function ConnectionStatus() {
   };
 
   const platforms = [
-    { id: 'instagram', name: 'Instagram', needsPageId: false },
-    { id: 'youtube', name: 'YouTube', needsPageId: false },
-    { id: 'tiktok', name: 'TikTok', needsPageId: false },
-    { id: 'facebook', name: 'Facebook', needsPageId: true },
+    { 
+      id: 'instagram', 
+      name: 'Instagram', 
+      color: 'bg-pink-500',
+      fields: [
+        { key: 'accessToken', label: 'Access Token', type: 'password', required: true },
+        { key: 'appId', label: 'Instagram App ID', type: 'text', required: true },
+        { key: 'appSecret', label: 'Instagram App Secret', type: 'password', required: true }
+      ]
+    },
+    { 
+      id: 'youtube', 
+      name: 'YouTube', 
+      color: 'bg-red-500',
+      fields: [
+        { key: 'accessToken', label: 'Access Token', type: 'password', required: true },
+        { key: 'refreshToken', label: 'Refresh Token', type: 'password', required: false },
+        { key: 'clientId', label: 'YouTube Client ID', type: 'text', required: true },
+        { key: 'clientSecret', label: 'YouTube Client Secret', type: 'password', required: true },
+        { key: 'apiKey', label: 'YouTube API Key', type: 'password', required: true }
+      ]
+    },
+    { 
+      id: 'tiktok', 
+      name: 'TikTok', 
+      color: 'bg-black',
+      fields: [
+        { key: 'accessToken', label: 'Access Token', type: 'password', required: true },
+        { key: 'clientId', label: 'TikTok Client Key', type: 'text', required: true },
+        { key: 'clientSecret', label: 'TikTok Client Secret', type: 'password', required: true }
+      ]
+    },
+    { 
+      id: 'facebook', 
+      name: 'Facebook', 
+      color: 'bg-blue-600',
+      fields: [
+        { key: 'accessToken', label: 'Access Token', type: 'password', required: true },
+        { key: 'pageId', label: 'Facebook Page ID', type: 'text', required: true },
+        { key: 'appId', label: 'Facebook App ID', type: 'text', required: true },
+        { key: 'appSecret', label: 'Facebook App Secret', type: 'password', required: true }
+      ]
+    },
   ];
 
   const getStatusBadge = (platform: string) => {
@@ -219,63 +279,30 @@ export default function ConnectionStatus() {
                         <DialogTitle>Connect to {platform.name}</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="access-token">Access Token</Label>
-                          <Input
-                            id="access-token"
-                            type="password"
-                            placeholder="Enter your access token"
-                            value={connectionData.accessToken}
-                            onChange={(e) =>
-                              setConnectionData(prev => ({
-                                ...prev,
-                                accessToken: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        {platform.id === 'youtube' && (
-                          <div>
-                            <Label htmlFor="refresh-token">Refresh Token</Label>
+                        {platform.fields.map((field) => (
+                          <div key={field.key}>
+                            <Label htmlFor={field.key}>{field.label}</Label>
                             <Input
-                              id="refresh-token"
-                              type="password"
-                              placeholder="Enter your refresh token"
-                              value={connectionData.refreshToken || ""}
+                              id={field.key}
+                              type={field.type}
+                              placeholder={`Enter your ${field.label}`}
+                              value={connectionData[field.key as keyof PlatformConnectionData] as string || ""}
                               onChange={(e) =>
                                 setConnectionData(prev => ({
                                   ...prev,
-                                  refreshToken: e.target.value,
+                                  [field.key]: e.target.value,
                                 }))
                               }
                             />
                           </div>
-                        )}
-
-                        {platform.needsPageId && (
-                          <div>
-                            <Label htmlFor="page-id">Page ID</Label>
-                            <Input
-                              id="page-id"
-                              placeholder="Enter your page ID"
-                              value={connectionData.pageId || ""}
-                              onChange={(e) =>
-                                setConnectionData(prev => ({
-                                  ...prev,
-                                  pageId: e.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-                        )}
+                        ))}
 
                         <Button
                           onClick={handleConnect}
                           disabled={
                             !connectionData.accessToken.trim() ||
                             connectMutation.isPending ||
-                            (platform.needsPageId && !connectionData.pageId?.trim())
+                            platform.fields.some(field => field.required && !connectionData[field.key as keyof PlatformConnectionData]?.toString().trim())
                           }
                           className="w-full"
                         >
@@ -302,6 +329,8 @@ export default function ConnectionStatus() {
     </Card>
   );
 }
+
+export { ConnectionStatus };
 
 function ConnectionInfo() {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
