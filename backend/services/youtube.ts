@@ -31,34 +31,55 @@ export class YouTubeService {
       const timestamp = Date.now();
       const outputTemplate = path.join(outputDir, `youtube_${timestamp}_%(title)s.%(ext)s`);
 
-      // Download video using yt-dlp
-      const command = `yt-dlp -f "best[ext=mp4]" --no-playlist -o "${outputTemplate}" "${url}"`;
+      console.log('Starting YouTube download for:', url);
+
+      // Primeiro, obter informações do vídeo
+      const infoCommand = `yt-dlp --get-duration --get-title --get-filename -o "%(title)s.%(ext)s" "${url}"`;
+      console.log('Getting video info:', infoCommand);
       
-      const { stdout, stderr } = await execAsync(command);
+      const { stdout: infoOutput, stderr: infoStderr } = await execAsync(infoCommand);
+      
+      if (infoStderr) {
+        console.warn('yt-dlp info stderr:', infoStderr);
+      }
+
+      const infoLines = infoOutput.trim().split('\n');
+      const duration = this.parseDuration(infoLines[0] || '0:00');
+      const title = infoLines[1] || 'Unknown Video';
+      const filename = infoLines[2] || 'video.mp4';
+
+      console.log('Video info - Duration:', duration, 'Title:', title);
+
+      // Download video using yt-dlp
+      const downloadCommand = `yt-dlp -f "best[ext=mp4][height<=720]/best[ext=mp4]/best" --no-playlist --restrict-filenames -o "${outputTemplate}" "${url}"`;
+      console.log('Download command:', downloadCommand);
+      
+      const { stdout, stderr } = await execAsync(downloadCommand, { timeout: 300000 }); // 5 min timeout
       
       if (stderr) {
-        console.warn('yt-dlp warning:', stderr);
+        console.warn('yt-dlp download stderr:', stderr);
       }
+
+      console.log('yt-dlp download stdout:', stdout);
 
       // Find the downloaded file
       const files = fs.readdirSync(outputDir).filter(file => file.startsWith(`youtube_${timestamp}_`));
       
       if (files.length === 0) {
-        throw new Error('No file was downloaded');
+        console.error('No files found with pattern:', `youtube_${timestamp}_`);
+        console.log('Files in directory:', fs.readdirSync(outputDir));
+        throw new Error('No file was downloaded. Check yt-dlp installation and video availability.');
       }
 
       const filePath = path.join(outputDir, files[0]);
       const stats = fs.statSync(filePath);
       
-      // Get video info
-      const infoCommand = `yt-dlp --get-duration --get-title "${url}"`;
-      const { stdout: infoOutput } = await execAsync(infoCommand);
-      const [title, durationStr] = infoOutput.trim().split('\n');
-      
+      console.log('Downloaded file:', filePath, 'Size:', stats.size);
+
       return {
         filePath,
-        originalName: `${title}.mp4`,
-        duration: this.parseDuration(durationStr),
+        originalName: title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_') + '.mp4',
+        duration,
         fileSize: stats.size
       };
 

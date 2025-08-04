@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
@@ -23,9 +23,29 @@ export class FFmpegService {
 
   async getVideoInfo(filePath: string): Promise<{ duration: number; width: number; height: number }> {
     try {
+      // Verificar se o arquivo existe
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File does not exist: ${filePath}`);
+      }
+
       const command = `ffprobe -v quiet -print_format json -show_format -show_streams "${filePath}"`;
-      const { stdout } = await execAsync(command);
+      console.log('Executing FFprobe command:', command);
+      
+      const { stdout, stderr } = await execAsync(command);
+      
+      if (stderr) {
+        console.warn('FFprobe stderr:', stderr);
+      }
+      
+      if (!stdout || stdout.trim() === '') {
+        throw new Error('FFprobe returned empty output');
+      }
+      
       const info = JSON.parse(stdout);
+      
+      if (!info.streams || !info.format) {
+        throw new Error('Invalid video file or corrupted');
+      }
       
       const videoStream = info.streams.find((stream: any) => stream.codec_type === 'video');
       const duration = parseFloat(info.format.duration || '0');
@@ -36,7 +56,8 @@ export class FFmpegService {
         height: videoStream?.height || 0,
       };
     } catch (error) {
-      throw new Error(`Failed to get video info: ${error}`);
+      console.error('FFprobe error:', error);
+      throw new Error(`Failed to get video info: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

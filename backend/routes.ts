@@ -52,12 +52,27 @@ const upload = multer({
     fileSize: 500 * 1024 * 1024, // 500MB limit
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'video/mp4') {
+    console.log('File filter - mimetype:', file.mimetype, 'originalname:', file.originalname);
+    
+    // Aceitar vários tipos de vídeo
+    const allowedTypes = [
+      'video/mp4',
+      'video/mpeg',
+      'video/quicktime',
+      'video/x-msvideo', // .avi
+      'video/x-ms-wmv'   // .wmv
+    ];
+    
+    if (allowedTypes.includes(file.mimetype) || file.originalname.toLowerCase().endsWith('.mp4')) {
       cb(null, true);
     } else {
-      cb(new Error('Only MP4 files are allowed'));
+      cb(new Error(`File type not allowed: ${file.mimetype}. Only video files are accepted.`));
     }
   },
+  onError: (err, next) => {
+    console.error('Multer error:', err);
+    next(err);
+  }
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -78,16 +93,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload video
   app.post("/api/videos/upload", upload.single('video'), async (req, res) => {
     try {
+      console.log('Upload request received');
+      
       if (!req.file) {
+        console.error('No file in request');
         return res.status(400).json({ message: "No video file provided" });
       }
+
+      console.log('File received:', req.file.originalname, 'Size:', req.file.size);
 
       const originalPath = req.file.path;
       const finalPath = path.join('uploads', `${Date.now()}_${req.file.originalname}`);
 
-      fs.renameSync(originalPath, finalPath);
+      // Verificar se o arquivo temporário existe
+      if (!fs.existsSync(originalPath)) {
+        console.error('Temporary file does not exist:', originalPath);
+        return res.status(500).json({ message: "Temporary file not found" });
+      }
 
+      fs.renameSync(originalPath, finalPath);
+      console.log('File moved to:', finalPath);
+
+      // Verificar se o arquivo final existe
+      if (!fs.existsSync(finalPath)) {
+        console.error('Final file does not exist:', finalPath);
+        return res.status(500).json({ message: "Failed to move uploaded file" });
+      }
+
+      console.log('Getting video info...');
       const videoInfo = await ffmpegService.getVideoInfo(finalPath);
+      console.log('Video info:', videoInfo);
 
       const videoData = {
         filename: path.basename(finalPath),
@@ -98,24 +133,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: null,
       };
 
+      console.log('Creating video record:', videoData);
       const video = await storage.createVideo(videoData);
+      console.log('Video created successfully:', video.id);
+      
       res.json(video);
     } catch (error) {
       console.error('Upload error:', error);
-      res.status(500).json({ message: "Failed to upload video" });
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to upload video",
+        details: error instanceof Error ? error.stack : undefined
+      });
     }
   });
 
   // Download video from YouTube
   app.post("/api/videos/download-youtube", async (req, res) => {
     try {
+      console.log('YouTube download request received');
       const { url } = req.body;
 
       if (!url) {
+        console.error('No URL provided');
         return res.status(400).json({ message: "YouTube URL is required" });
       }
 
+      console.log('Downloading from URL:', url);
+
       const downloadResult = await youtubeService.downloadVideo(url, uploadDir);
+      console.log('Download completed:', downloadResult);
 
       const videoData = {
         filename: path.basename(downloadResult.filePath),
@@ -126,11 +172,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: null,
       };
 
+      console.log('Creating video record for YouTube download:', videoData);
       const video = await storage.createVideo(videoData);
+      console.log('YouTube video created successfully:', video.id);
+      
       res.json(video);
     } catch (error) {
       console.error('YouTube download error:', error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to download YouTube video" });
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to download YouTube video",
+        details: error instanceof Error ? error.stack : undefined
+      });
     }
   });
 
