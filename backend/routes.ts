@@ -376,6 +376,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Publish cut to social media platforms
+  app.post("/api/cuts/:id/publish", async (req, res) => {
+    try {
+      const { platforms } = req.body;
+      const cutId = req.params.id;
+
+      if (!platforms || typeof platforms !== 'object') {
+        return res.status(400).json({ message: "Platforms selection is required" });
+      }
+
+      const cut = await storage.getCut(cutId);
+      if (!cut) {
+        return res.status(404).json({ message: "Cut not found" });
+      }
+
+      if (cut.status !== 'ready') {
+        return res.status(400).json({ message: "Cut is not ready for publishing" });
+      }
+
+      // Update cut with selected platforms
+      await storage.updateCut(cutId, {
+        platforms,
+        status: 'publishing'
+      });
+
+      // TODO: Implement actual social media publishing
+      // For now, we'll simulate the publishing process
+      setTimeout(async () => {
+        try {
+          await storage.updateCut(cutId, {
+            status: 'published'
+          });
+        } catch (error) {
+          console.error('Failed to update cut status:', error);
+        }
+      }, 5000);
+
+      res.json({ 
+        message: "Publishing started successfully",
+        platforms: Object.keys(platforms).filter(key => platforms[key])
+      });
+    } catch (error) {
+      console.error('Publish error:', error);
+      res.status(500).json({ message: "Failed to start publishing" });
+    }
+  });
+
   // Background processing function
   async function processVideoInBackground(video: any, job: any, cutPoints: string) {
     try {

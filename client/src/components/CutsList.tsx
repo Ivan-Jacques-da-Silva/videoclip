@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -12,9 +11,11 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Edit, Trash, Play, Share } from "lucide-react";
+import { Edit, Trash2, Play, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import EditCutModal from "./EditCutModal";
+import PublishModal from "./PublishModal";
+import { formatTime } from "@/lib/utils";
 
 interface Cut {
   id: string;
@@ -36,6 +37,8 @@ interface Cut {
 export default function CutsList() {
   const [selectedCut, setSelectedCut] = useState<Cut | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [cutToPublish, setCutToPublish] = useState<Cut | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -96,9 +99,14 @@ export default function CutsList() {
     }
   };
 
-  const handleEdit = (cut: Cut) => {
+  const handleEditCut = (cut: Cut) => {
     setSelectedCut(cut);
     setIsEditModalOpen(true);
+  };
+
+  const handlePublishCut = (cut: Cut) => {
+    setCutToPublish(cut);
+    setIsPublishModalOpen(true);
   };
 
   const handleDelete = (cutId: string) => {
@@ -198,11 +206,20 @@ export default function CutsList() {
                             </Button>
                           )}
                           <Button
-                            onClick={() => handleEdit(cut)}
+                            onClick={() => handleEditCut(cut)}
                             size="sm"
                             variant="outline"
                           >
                             <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handlePublishCut(cut)}
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            disabled={cut.status !== 'ready'}
+                          >
+                            <Share2 className="h-3 w-3" />
+                            Publicar
                           </Button>
                           <Button
                             onClick={() => handleDelete(cut.id)}
@@ -210,7 +227,7 @@ export default function CutsList() {
                             variant="destructive"
                             disabled={deleteCutMutation.isPending}
                           >
-                            <Trash className="h-3 w-3" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
@@ -230,6 +247,16 @@ export default function CutsList() {
           onClose={() => {
             setIsEditModalOpen(false);
             setSelectedCut(null);
+          }}
+        />
+      )}
+
+      {isPublishModalOpen && cutToPublish && (
+        <PublishModal
+          cut={cutToPublish}
+          onClose={() => {
+            setIsPublishModalOpen(false);
+            setCutToPublish(null);
           }}
         />
       )}

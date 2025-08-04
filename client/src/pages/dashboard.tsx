@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VideoUpload from "@/components/VideoUpload";
+import VideosList from "@/components/VideosList";
 import CutsList from "@/components/CutsList";
 import StatsCards from "@/components/StatsCards";
 import ProcessingQueue from "@/components/ProcessingQueue";
@@ -50,6 +51,7 @@ export default function Dashboard() {
                     <p className="text-sm text-gray-500">Faça upload e gerencie seus vídeos</p>
                   </div>
                   <VideoUpload />
+                  <VideosList />
                 </div>
               </TabsContent>
 
